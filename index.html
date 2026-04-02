@@ -171,7 +171,10 @@ body{font-family:'DM Sans',sans-serif;background:#f4f0ea;color:#1e2d24;min-heigh
     <div class="progress-wrap">
       <div class="progress-meta">
         <span>Progresso da semana</span>
-        <span id="progressText">0/35 · 0%</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="progressText">0/35 · 0%</span>
+          <button onclick="resetState()" title="Reiniciar progresso" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:11px;cursor:pointer;padding:0;font-family:sans-serif;letter-spacing:.5px;">↺ reiniciar</button>
+        </div>
       </div>
       <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
     </div>
@@ -367,6 +370,52 @@ const accordionData = [
 ];
 
 // ═══════════════════════════════════
+//  SAVE / LOAD — localStorage
+// ═══════════════════════════════════
+const SAVE_KEY = 'plano_articulacoes_v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      completed, activeDay, activeMeal, ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.completed)   completed   = s.completed;
+    if (typeof s.activeDay === 'number') activeDay = s.activeDay;
+    if (s.activeMeal)  activeMeal  = s.activeMeal;
+  } catch(e) {}
+}
+
+function resetState() {
+  if (!confirm('Tem certeza que deseja apagar todo o seu progresso?')) return;
+  localStorage.removeItem(SAVE_KEY);
+  completed = {}; activeDay = 0; activeMeal = 'manha';
+  renderAll(); updateProgress();
+  showToast('✓ Progresso reiniciado');
+}
+
+function showToast(msg) {
+  let t = document.getElementById('save-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'save-toast';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#2d5a3d;color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-family:sans-serif;opacity:0;transition:all .3s;z-index:9998;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 2000);
+}
+
+// ═══════════════════════════════════
 //  STATE
 // ═══════════════════════════════════
 let activeDay  = 0;
@@ -374,6 +423,8 @@ let activeMeal = 'manha';
 let completed  = {};
 let openAccordion = null;
 let selectedPlan  = 'completo';
+
+loadState(); // ← carrega progresso salvo
 
 const TOTAL = days.length * mealOrder.length;
 
@@ -509,6 +560,8 @@ function renderMealCard() {
 
 function toggleDone(key) {
   completed[key] = !completed[key];
+  saveState();
+  showToast(completed[key] ? '✓ Refeição salva!' : 'Refeição desmarcada');
   updateProgress();
   renderDayRow();
   renderMealTabs();
@@ -626,6 +679,7 @@ function renderAll() {
   renderMealCard();
   renderTip();
   renderNav();
+  saveState();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
